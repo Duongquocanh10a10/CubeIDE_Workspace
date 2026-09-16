@@ -75,6 +75,9 @@
       0x40, 0x79, 0x24, 0x30, 0x19,
       0x12, 0x02, 0x78, 0x00, 0x10
   };
+
+  uint32_t phaseStartTime = 0;
+  int lastDisplayedSecond = -1;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -85,6 +88,7 @@ void setDirection(Color c, GPIO_TypeDef *port, uint16_t redPin, uint16_t yellowP
 void enterPhase(int phaseIndex);
 
 void display7SEG(int num);
+void updateSystem(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -124,21 +128,16 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
-
+  phaseStartTime = HAL_GetTick();
+  enterPhase(currentPhase);
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  int counter = 0;
+
   while (1)
   {
     /* USER CODE END WHILE */
-
-//	  enterPhase(currentPhase);
-//	  HAL_Delay(phaseTable[currentPhase].duration);
-//	  currentPhase = (currentPhase + 1) % 4;
-	  if (counter >= 10) counter = 0;
-	  display7SEG(counter++);
-	  HAL_Delay(1000);
-	  /* USER CODE BEGIN 3 */
+	  updateSystem();
+    /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
 }
@@ -255,6 +254,29 @@ void display7SEG(int num) {
     for (int i = 0; i < 7; i++) {
         GPIO_PinState state = ((pattern >> i) & 0x01) ? GPIO_PIN_SET : GPIO_PIN_RESET;
         HAL_GPIO_WritePin(segPins[i].port, segPins[i].pin, state);
+    }
+}
+
+void updateSystem(void) {
+    uint32_t now = HAL_GetTick();
+    uint32_t elapsed = now - phaseStartTime;
+    uint32_t duration = phaseTable[currentPhase].duration;
+
+    if (elapsed >= duration) {
+        currentPhase = (currentPhase + 1) % 4;
+        phaseStartTime = now;
+        enterPhase(currentPhase);
+        elapsed = 0;
+        duration = phaseTable[currentPhase].duration;
+    }
+
+
+    int secondsLeft = (duration - elapsed) / 1000 + 1;
+    if (secondsLeft > 9) secondsLeft = 9;
+
+    if (secondsLeft != lastDisplayedSecond) {
+        display7SEG(secondsLeft);
+        lastDisplayedSecond = secondsLeft;
     }
 }
 /* USER CODE END 4 */
