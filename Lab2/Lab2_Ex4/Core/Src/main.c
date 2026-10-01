@@ -27,8 +27,8 @@
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
 typedef struct {
-	GPIO_TypeDef* port;
-	uint16_t pin;
+    GPIO_TypeDef* port;
+    uint16_t pin;
 } PinRef;
 /* USER CODE END PTD */
 
@@ -47,7 +47,7 @@ TIM_HandleTypeDef htim2;
 
 /* USER CODE BEGIN PV */
 int digitTick = 0, dotTick = 0;
-const int DIGIT_INTERVAL = 50;
+const int DIGIT_INTERVAL = 25;
 const int DOT_INTERVAL = 100;
 const int MAX_LED = 4;
 int index_led = 0;
@@ -88,9 +88,9 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
-
-/* USER CODE END PFP */
 void display7SEG(int num);
+/* USER CODE END PFP */
+
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
@@ -270,7 +270,6 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-
 void display7SEG(int num){
 	if (num < 0 || num > 9) return;
 	uint8_t pattern = seg_table[num];
