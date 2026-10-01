@@ -26,7 +26,10 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-
+typedef struct {
+    GPIO_TypeDef* port;
+    uint16_t pin;
+} PinRef;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -43,7 +46,29 @@
 TIM_HandleTypeDef htim2;
 
 /* USER CODE BEGIN PV */
+PinRef segPins[7] = {
+    {SEG0_GPIO_Port, SEG0_Pin},   // a
+    {SEG1_GPIO_Port, SEG1_Pin},   // b
+    {SEG2_GPIO_Port, SEG2_Pin},   // c
+    {SEG3_GPIO_Port, SEG3_Pin},   // d
+    {SEG4_GPIO_Port, SEG4_Pin},   // e
+    {SEG5_GPIO_Port, SEG5_Pin},   // f
+    {SEG6_GPIO_Port, SEG6_Pin}    // g
+};
 
+// bit0=a, bit1=b, bit2=c, bit3=d, bit4=e, bit5=f, bit6=g — 1 = tắt (active-low, common-anode)
+const uint8_t seg_table[10] = {
+    0x40, // 0
+    0x79, // 1
+    0x24, // 2
+    0x30, // 3
+    0x19, // 4
+    0x12, // 5
+    0x02, // 6
+    0x78, // 7
+    0x00, // 8
+    0x10  // 9
+};
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -51,7 +76,7 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
-
+void display7SEG(int num);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -90,7 +115,7 @@ int main(void)
   MX_GPIO_Init();
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
-
+  HAL_TIM_Base_Start_IT(&htim2);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -202,14 +227,17 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, LED_RED_Pin|EN0_Pin|EN1_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, DOT_Pin|LED_RED_Pin|EN0_Pin|EN1_Pin
+                          |EN2_Pin|EN3_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, SEG0_Pin|SEG1_Pin|SEG2_Pin|SEG3_Pin
                           |SEG4_Pin|SEG5_Pin|SEG6_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pins : LED_RED_Pin EN0_Pin EN1_Pin */
-  GPIO_InitStruct.Pin = LED_RED_Pin|EN0_Pin|EN1_Pin;
+  /*Configure GPIO pins : DOT_Pin LED_RED_Pin EN0_Pin EN1_Pin
+                           EN2_Pin EN3_Pin */
+  GPIO_InitStruct.Pin = DOT_Pin|LED_RED_Pin|EN0_Pin|EN1_Pin
+                          |EN2_Pin|EN3_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -230,7 +258,41 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+void display7SEG(int num) {
+    if (num < 0 || num > 9) return;   // validate input, tránh truy cập ngoài mảng
 
+    uint8_t pattern = seg_table[num];
+
+    for (int i = 0; i < 7; i++) {
+        GPIO_PinState state = ((pattern >> i) & 0x01) ? GPIO_PIN_SET : GPIO_PIN_RESET;
+        HAL_GPIO_WritePin(segPins[i].port, segPins[i].pin, state);
+    }
+}
+int digitToShow[4] = {1, 2 , 3, 0};
+int activeDigit = 0;
+int digitTick = 0, dotTick = 0;
+const int DIGIT_INTERVAL = 50;
+const int DOT_INTERVAL = 100;
+PinRef enPins[4] = {{EN0_GPIO_Port, EN0_Pin}, {EN1_GPIO_Port, EN1_Pin},
+					{EN2_GPIO_Port, EN2_Pin}, {EN3_GPIO_Port, EN3_Pin}};
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
+	digitTick++;
+	if (digitTick >= DIGIT_INTERVAL){
+		digitTick = 0;
+		for (int i = 0; i<4; i++){
+			HAL_GPIO_WritePin(enPins[i].port,enPins[i].pin, GPIO_PIN_SET);
+		}
+		activeDigit = (activeDigit + 1) % 4;
+		display7SEG(digitToShow[activeDigit]);
+		HAL_GPIO_WritePin(enPins[activeDigit].port, enPins[activeDigit].pin, GPIO_PIN_RESET);
+	}
+	dotTick++;
+	if (dotTick >= DOT_INTERVAL){
+		dotTick = 0;
+		HAL_GPIO_TogglePin(DOT_GPIO_Port, DOT_Pin);
+	}
+}
 /* USER CODE END 4 */
 
 /**
